@@ -1,5 +1,3 @@
-SYSTEM_MODE(MANUAL);
-SYSTEM_THREAD(ENABLED);
 #include <functional>
 #include <vector>
 typedef std::function<void()> VoidFunc;
@@ -12,30 +10,13 @@ public:
   pin_t pin;
   void initialize(pin_t PIN)
   {
+    updates.push_back(std::bind(&LED::update, this));
     pin = PIN;
     pinMode(pin, OUTPUT);
   }
-  void on()
+  void update()
   {
-    val = true;
-    digitalWrite(pin, HIGH);
-  }
-  void off()
-  {
-    val = false;
-    digitalWrite(pin, LOW);
-  }
-  void vTog(bool iVal)
-  {
-    val = iVal;
-    if (val)
-    {
-      digitalWrite(pin, HIGH);
-    }
-    else
-    {
-      digitalWrite(pin, LOW);
-    }
+    digitalWrite(pin, val);
   }
 };
 class Button
@@ -105,11 +86,11 @@ public:
   }
   void oneOn(int index)
   {
-    lightsInGroup[index].on();
+    lightsInGroup[index].val = true;
   }
   void oneOff(int index)
   {
-    lightsInGroup[index].off();
+    lightsInGroup[index].val = false;
   }
   void initialize(pin_t *PINS)
   {
@@ -123,7 +104,7 @@ public:
   {
     for (uint i = 0; i < sizeof(lightsInGroup) + 1; i++)
     {
-      lightsInGroup[i].off();
+      lightsInGroup[i].val = false;
     }
   }
 
@@ -131,7 +112,7 @@ public:
   {
     for (uint i = 0; i < sizeof(lightsInGroup) + 1; i++)
     {
-      lightsInGroup[i].on();
+      lightsInGroup[i].val = true;
     }
   }
 
@@ -139,7 +120,7 @@ public:
   {
     for (int i = 0; i < index; i++)
     {
-      lightsInGroup[i].on();
+      lightsInGroup[i].val = true;
     }
   }
 
@@ -147,7 +128,7 @@ public:
   {
     for (int i = 0; i < index; i++)
     {
-      lightsInGroup[i].off();
+      lightsInGroup[i].val = false;
     }
   }
 };

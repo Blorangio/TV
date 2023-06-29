@@ -4,47 +4,119 @@
 
 #include "Particle.h"
 #line 1 "/Users/admin/Documents/CTD_2023/Personal_Projects/TV/src/TV.ino"
-#include "basicLibrary.ino"
 void setup();
+void loop();
+void editProgram(int index);
 void play(int index);
 void remove(int index);
-void editProgram(int index);
-void loop();
-#line 2 "/Users/admin/Documents/CTD_2023/Personal_Projects/TV/src/TV.ino"
+#line 1 "/Users/admin/Documents/CTD_2023/Personal_Projects/TV/src/TV.ino"
+SYSTEM_MODE(MANUAL);
+SYSTEM_THREAD(ENABLED);
+#include "basicLibrary.ino"
+#define potentiometer A4
+#define returnFalseButton D9
+#define returnTrueButton D10
+#define noticeLight D11
 LED ledGrouping[5];
 LEDGroup LEDS(ledGrouping);
-pin_t ledPins[5] = {D0, D1, D2, D3, D4};
+pin_t ledPins[5] = {D0, D1, D2, D3, D4}; // Pins for the LEDs that make up the screen
 LED notice;
-Button accept;
-Button decline;
-Potentiometer p1;
-double ledSelected;
-bool programs[5][5][5];
-bool emptyProgram[5][5];
-bool programState[5] = {false, false, false, false, false};
+Button returnTrue;
+Button returnFalse;
+Potentiometer potentiometerSelecter;
+
+double ledPotentiometerSelected;
+bool animations[5][5][5];
+bool isAnimationFileFull[5] = {false, false, false, false, false};
+int ledIndex = 0;
+int frameIndex = 0;
+bool isFileFull;
+
 void setup()
 {
-  notice.initialize(D11);
+  notice.initialize(noticeLight);
   LEDS.initialize(ledPins);
-  accept.initialize(D10);
-  decline.initialize(D9);
-  p1.initialize(A4);
+  returnTrue.initialize(returnTrueButton);
+  returnFalse.initialize(returnFalseButton);
+  potentiometerSelecter.initialize(potentiometer);
 }
 
-bool playing = false;
-void play(int index)
+void loop()
 {
-  playing = true;
-  while (playing)
+  update();
+  ledPotentiometerSelected = map(potentiometerSelecter.val, 0, 4095, 0, 5);
+  LEDS.allOff();
+  LEDS.oneOn(ledPotentiometerSelected);
+  isFileFull = isAnimationFileFull[(int)ledPotentiometerSelected];
+  notice.val = isFileFull;
+  if (isFileFull)
+  {
+    if (returnFalse.clicked)
+    {
+      remove((int)ledPotentiometerSelected);
+    }
+    if (returnTrue.clicked)
+    {
+      play((int)ledPotentiometerSelected);
+    }
+  }
+  else if (returnTrue.clicked)
+  {
+    editProgram((int)ledPotentiometerSelected);
+  }
+}
+
+void editProgram(int index)
+{
+  LEDS.allOff();
+  ledIndex = 0;
+  frameIndex = 0;
+  while (frameIndex < 5)
   {
     update();
-    playing = !accept.clicked;
-    for (bool *frame : programs[index])
+    if (ledIndex == 5)
     {
+      notice.val = true;
+      if (returnTrue.clicked || returnFalse.clicked)
+      {
+        LEDS.allOff();
+        ledIndex = 0;
+        notice.val = false;
+        if (returnTrue.clicked)
+        {
+          frameIndex++;
+        }
+      }
+    }
+    else
+    {
+      if (returnTrue.clicked || returnFalse.clicked)
+      {
+        if (returnTrue.clicked)
+        {
+          LEDS.oneOn(ledIndex);
+          animations[index][frameIndex][ledIndex] = true;
+        }
+        ledIndex++;
+      }
+    }
+  }
+  isAnimationFileFull[index] = true;
+}
+
+void play(int index)
+{
+  notice.val = false;
+  returnTrue.bDown = false;
+  while (!returnTrue.bDown)
+  {
+    for (bool *frame : animations[index])
+    {
+      update();
       LEDS.allOff();
       for (int ledIndex = 0; ledIndex < 5; ledIndex++)
       {
-        LEDS.lightsInGroup[ledIndex].vTog(frame[ledIndex]);
+        LEDS.lightsInGroup[ledIndex].val = frame[ledIndex];
       }
       delay(200);
     }
@@ -53,84 +125,12 @@ void play(int index)
 
 void remove(int index)
 {
-  programState[index] = false;
-  for (bool *frame : programs[index])
+  isAnimationFileFull[index] = false;
+  for (bool *frame : animations[index])
   {
     for (int light = 0; light < 5; light++)
     {
       frame[light] = false;
     }
-  }
-}
-
-bool editing = false;
-int editingIndex = 0;
-int frameIndex = 0;
-void editProgram(int index)
-{
-  LEDS.allOff();
-  editing = true;
-  editingIndex = 0;
-  frameIndex = 0;
-  while (editing)
-  {
-    update();
-    if (editingIndex == 5)
-    {
-      notice.on();
-      if (accept.clicked)
-      {
-        LEDS.allOff();
-        editingIndex = 0;
-        frameIndex++;
-      }
-      if (decline.clicked)
-      {
-        LEDS.allOff();
-        editingIndex = 0;
-      }
-    }
-    else
-    {
-      notice.off();
-      if (accept.clicked)
-      {
-        LEDS.oneOn(editingIndex);
-        programs[index][frameIndex][editingIndex] = true;
-        editingIndex++;
-      }
-      if (decline.clicked)
-      {
-        editingIndex++;
-      }
-    }
-    if (frameIndex == 5)
-    {
-      editing = false;
-    }
-  }
-  programState[index] = true;
-}
-
-void loop()
-{
-  update();
-  ledSelected = map(p1.val, 0, 4095, 0, 5);
-  LEDS.allOff();
-  LEDS.oneOn(ledSelected);
-  bool fileFull = programState[(int)ledSelected];
-  notice.vTog(fileFull);
-
-  if (fileFull && accept.clicked)
-  {
-    play((int)ledSelected);
-  }
-  if (fileFull && decline.clicked)
-  {
-    remove((int)ledSelected);
-  }
-  if (!fileFull && accept.clicked)
-  {
-    editProgram((int)ledSelected);
   }
 }
