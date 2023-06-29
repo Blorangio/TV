@@ -103,6 +103,14 @@ public:
   {
     lightsInGroup = setLights;
   }
+  void oneOn(int index)
+  {
+    lightsInGroup[index].on();
+  }
+  void oneOff(int index)
+  {
+    lightsInGroup[index].off();
+  }
   void initialize(pin_t *PINS)
   {
     pins = PINS;
